@@ -11,6 +11,20 @@ function start_session() {
         exit 1
     fi
     
+    # Check if we're in a git repository
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        echo "Error: Not in a git repository!"
+        echo "Please run gotime from within a git repository."
+        exit 1
+    fi
+    
+    # Check for tmux
+    if ! command -v tmux &> /dev/null; then
+        echo "Error: tmux is not installed!"
+        echo "Install with: brew install tmux (macOS) or apt-get install tmux (Linux)"
+        exit 1
+    fi
+    
     FEATURE1=$1
     FEATURE2=$2
     SESSION_ID=$(date +%s | tail -c 5)
@@ -20,6 +34,11 @@ function start_session() {
     
     # Get current branch
     BASE_BRANCH=$(git branch --show-current)
+    if [ -z "$BASE_BRANCH" ]; then
+        # Detached HEAD state, use commit hash
+        BASE_BRANCH=$(git rev-parse HEAD)
+        echo "Warning: Detached HEAD state. Using commit $BASE_BRANCH as base."
+    fi
     
     # Create worktrees
     WORKTREE1="$GOTIME_DIR/session_${SESSION_ID}_${FEATURE1}"

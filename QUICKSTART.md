@@ -1,9 +1,22 @@
 # Gotime MVP - Quick Start Guide
 
 ## Prerequisites
-- Git repository (this won't work outside a git repo)
+- **Must be inside a Git repository** - gotime uses git worktrees
 - tmux installed (`brew install tmux` on macOS)
 - Basic familiarity with tmux (Ctrl-b is the prefix key)
+
+## Git Repository Requirement
+
+Gotime **must** be run from within a git repository because it:
+- Creates git worktrees (isolated copies of your repo)
+- Creates feature branches
+- Manages git commits and pushes
+
+If you try to run it outside a git repo, you'll see:
+```
+Error: Not in a git repository!
+Please run gotime from within a git repository.
+```
 
 ## Installation (30 seconds)
 
