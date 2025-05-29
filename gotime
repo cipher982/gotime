@@ -1,86 +1,91 @@
 #!/bin/bash
 
 # gotime - Simple git worktree management tool
+# Source this file to use: source /path/to/gotime
+# Then use: gotime feature my_feature
 
-GOTIME_DIR="/tmp/gotime_worktrees"
+GOTIME_DIR="/tmp/gotime"
 
-function show_usage() {
-    echo "Usage: gotime <command> [args]" >&2
-    echo "" >&2
-    echo "Commands:" >&2
-    echo "  feature <name>    Create worktree for feature branch" >&2
-    echo "  help             Show this help" >&2
-    echo "" >&2
-    echo "Usage with eval to change directory:" >&2
-    echo "  \$(gotime feature my_feature)" >&2
+function gotime() {
+    case "${1:-}" in
+        feature)
+            if [[ -z "$2" ]]; then
+                echo "Error: Feature name required" >&2
+                echo "Usage: gotime feature <name>" >&2
+                return 1
+            fi
+            
+            # Check if we're in a git repository
+            if ! git rev-parse --git-dir > /dev/null 2>&1; then
+                echo "Error: Not in a git repository!" >&2
+                return 1
+            fi
+            
+            local feature_name="$2"
+            local repo_name=$(basename "$(git rev-parse --show-toplevel)")
+            local base_branch=$(git branch --show-current)
+            local timestamp=$(date +%s | tail -c 5)
+            
+            if [[ -z "$base_branch" ]]; then
+                base_branch=$(git rev-parse HEAD)
+                echo "Warning: Detached HEAD state. Using commit $base_branch as base."
+            fi
+            
+            local worktree_path="$GOTIME_DIR/${repo_name}_${feature_name}_${timestamp}"
+            local branch_name="feature/${feature_name}-${timestamp}"
+            
+            mkdir -p "$GOTIME_DIR" 2>/dev/null
+            
+            echo "Creating worktree for feature: $feature_name"
+            echo "Branch: $branch_name"
+            echo "Path: $worktree_path"
+            echo
+            
+            if git worktree add -b "$branch_name" "$worktree_path" "$base_branch"; then
+                echo
+                echo "✅ Worktree created successfully!"
+                echo "📁 Switching to: $worktree_path"
+                cd "$worktree_path"
+            else
+                echo "❌ Failed to create worktree"
+                return 1
+            fi
+            ;;
+        help|--help|-h)
+            echo "gotime - Simple git worktree management"
+            echo
+            echo "Usage: gotime <command> [args]"
+            echo
+            echo "Commands:"
+            echo "  feature <name>    Create worktree for feature branch and switch to it"
+            echo "  help             Show this help"
+            echo
+            echo "Setup:"
+            echo "  Add to your shell config (~/.bashrc or ~/.zshrc):"
+            echo "  source /path/to/this/gotime"
+            ;;
+        "")
+            echo "Error: No command specified" >&2
+            echo "Run 'gotime help' for usage information" >&2
+            return 1
+            ;;
+        *)
+            echo "Error: Unknown command '$1'" >&2
+            echo "Run 'gotime help' for usage information" >&2
+            return 1
+            ;;
+    esac
 }
 
-function create_feature_worktree() {
-    local feature_name="$1"
-    
-    if [[ -z "$feature_name" ]]; then
-        echo "Error: Feature name required" >&2
-        show_usage
-        exit 1
-    fi
-    
-    # Check if we're in a git repository
-    if ! git rev-parse --git-dir > /dev/null 2>&1; then
-        echo "Error: Not in a git repository!" >&2
-        echo "Please run gotime from within a git repository." >&2
-        exit 1
-    fi
-    
-    # Get repo name and current branch
-    local repo_name=$(basename "$(git rev-parse --show-toplevel)")
-    local base_branch=$(git branch --show-current)
-    local timestamp=$(date +%s | tail -c 5)
-    
-    if [[ -z "$base_branch" ]]; then
-        base_branch=$(git rev-parse HEAD)
-        echo "Warning: Detached HEAD state. Using commit $base_branch as base." >&2
-    fi
-    
-    # Create paths
-    local worktree_path="$GOTIME_DIR/${repo_name}_${feature_name}_${timestamp}"
-    local branch_name="feature/${feature_name}-${timestamp}"
-    
-    # Create worktree directory if needed
-    mkdir -p "$GOTIME_DIR" 2>/dev/null
-    
-    # Create the worktree
-    echo "Creating worktree for feature: $feature_name" >&2
-    echo "Branch: $branch_name" >&2
-    echo "Path: $worktree_path" >&2
-    
-    if git worktree add -b "$branch_name" "$worktree_path" "$base_branch" 2>&1 | while IFS= read -r line; do echo "$line" >&2; done; then
-        echo "✅ Worktree created successfully!" >&2
-        echo "" >&2
-        # Output the cd command to stdout (for eval)
-        echo "cd '$worktree_path'"
-    else
-        echo "❌ Failed to create worktree" >&2
-        exit 1
-    fi
-}
-
-# Main command processing
-case "${1:-}" in
-    feature)
-        shift
-        create_feature_worktree "$@"
-        ;;
-    help|--help|-h)
-        show_usage
-        ;;
-    "")
-        echo "Error: No command specified" >&2
-        show_usage
-        exit 1
-        ;;
-    *)
-        echo "Error: Unknown command '$1'" >&2
-        show_usage
-        exit 1
-        ;;
-esac
+# If script is being executed (not sourced), show setup instructions
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    echo "gotime setup required!"
+    echo
+    echo "Add this line to your ~/.bashrc or ~/.zshrc:"
+    echo "source $(realpath "${BASH_SOURCE[0]}")"
+    echo
+    echo "Then restart your shell or run:"
+    echo "source ~/.bashrc  # or ~/.zshrc"
+    echo
+    echo "After that, you can use: gotime feature my_feature"
+fi
