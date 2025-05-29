@@ -1,0 +1,86 @@
+#!/bin/bash
+
+# gotime - Simple git worktree management tool
+
+GOTIME_DIR="/tmp/gotime_worktrees"
+
+function show_usage() {
+    echo "Usage: gotime <command> [args]" >&2
+    echo "" >&2
+    echo "Commands:" >&2
+    echo "  feature <name>    Create worktree for feature branch" >&2
+    echo "  help             Show this help" >&2
+    echo "" >&2
+    echo "Usage with eval to change directory:" >&2
+    echo "  \$(gotime feature my_feature)" >&2
+}
+
+function create_feature_worktree() {
+    local feature_name="$1"
+    
+    if [[ -z "$feature_name" ]]; then
+        echo "Error: Feature name required" >&2
+        show_usage
+        exit 1
+    fi
+    
+    # Check if we're in a git repository
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        echo "Error: Not in a git repository!" >&2
+        echo "Please run gotime from within a git repository." >&2
+        exit 1
+    fi
+    
+    # Get repo name and current branch
+    local repo_name=$(basename "$(git rev-parse --show-toplevel)")
+    local base_branch=$(git branch --show-current)
+    local timestamp=$(date +%s | tail -c 5)
+    
+    if [[ -z "$base_branch" ]]; then
+        base_branch=$(git rev-parse HEAD)
+        echo "Warning: Detached HEAD state. Using commit $base_branch as base." >&2
+    fi
+    
+    # Create paths
+    local worktree_path="$GOTIME_DIR/${repo_name}_${feature_name}_${timestamp}"
+    local branch_name="feature/${feature_name}-${timestamp}"
+    
+    # Create worktree directory if needed
+    mkdir -p "$GOTIME_DIR" 2>/dev/null
+    
+    # Create the worktree
+    echo "Creating worktree for feature: $feature_name" >&2
+    echo "Branch: $branch_name" >&2
+    echo "Path: $worktree_path" >&2
+    
+    if git worktree add -b "$branch_name" "$worktree_path" "$base_branch" 2>&1 | while IFS= read -r line; do echo "$line" >&2; done; then
+        echo "✅ Worktree created successfully!" >&2
+        echo "" >&2
+        # Output the cd command to stdout (for eval)
+        echo "cd '$worktree_path'"
+    else
+        echo "❌ Failed to create worktree" >&2
+        exit 1
+    fi
+}
+
+# Main command processing
+case "${1:-}" in
+    feature)
+        shift
+        create_feature_worktree "$@"
+        ;;
+    help|--help|-h)
+        show_usage
+        ;;
+    "")
+        echo "Error: No command specified" >&2
+        show_usage
+        exit 1
+        ;;
+    *)
+        echo "Error: Unknown command '$1'" >&2
+        show_usage
+        exit 1
+        ;;
+esac
