@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# gotime-warp - Parallel development with Warp terminal
+# gotime-warp - Parallel development with Warp terminal and AppleScript automation
 
 GOTIME_DIR="/tmp/gotime_sessions"
 SESSION_FILE="$HOME/.gotime_session"
@@ -64,10 +64,8 @@ BASE_BRANCH=$BASE_BRANCH
 EOF
     
     if check_terminal; then
-        # Use Warp launch configuration
         launch_with_warp "$SESSION_ID" "$FEATURE1" "$FEATURE2" "$WORKTREE1" "$WORKTREE2"
     else
-        # Fall back to tmux
         echo "Warp not detected, falling back to tmux..."
         launch_with_tmux "$SESSION_ID" "$WORKTREE1" "$WORKTREE2" "$FEATURE1" "$FEATURE2"
     fi
@@ -87,7 +85,7 @@ function launch_with_warp() {
     CONFIG_FILENAME="gotime_${SESSION_ID}.yaml"
     CONFIG_FILE="$WARP_CONFIG_DIR/$CONFIG_FILENAME"
     
-    # Create launch configuration with proper format
+    # Create launch configuration with minimal working format (no commands)
     cat > "$CONFIG_FILE" << EOF
 name: gotime session ${SESSION_ID}
 windows:
@@ -97,19 +95,7 @@ windows:
           split_direction: horizontal
           panes:
             - cwd: ${WORKTREE1}
-              is_focused: true
-              commands:
-                - exec: echo "🚀 Working on ${FEATURE1}"
-                - exec: echo "Branch: feature/${FEATURE1}-${SESSION_ID}"
-                - exec: echo ""
-                - exec: echo "Run your AI assistant or start coding!"
             - cwd: ${WORKTREE2}
-              commands:
-                - exec: echo "🚀 Working on ${FEATURE2}"
-                - exec: echo "Branch: feature/${FEATURE2}-${SESSION_ID}"
-                - exec: echo ""
-                - exec: echo "Run your AI assistant or start coding!"
-        color: blue
 EOF
     
     # Save config file path to session
@@ -118,10 +104,22 @@ EOF
     echo "Launching Warp with split panes..."
     echo "Config saved to: $CONFIG_FILE"
     
-    # Open Warp with the launch configuration (just the filename!)
-    echo "Opening: warp://launch/${CONFIG_FILENAME}"
-    open "warp://launch/${CONFIG_FILENAME}"
-    
+    # AppleScript automation to open Warp, Command Palette, and launch config
+    osascript <<EOF
+tell application "Warp"
+    activate
+    delay 1
+end tell
+
+tell application "System Events"
+    keystroke "p" using {command down}
+    delay 0.5
+    keystroke "gotime session ${SESSION_ID}"
+    delay 0.5
+    key code 36
+end tell
+EOF
+
     echo ""
     echo "✅ Gotime session started!"
     echo "📁 Feature 1: $FEATURE1 in $WORKTREE1"
